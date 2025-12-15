@@ -4,8 +4,8 @@ Representa el mapa del juego con diferentes tipos de terreno
 
 import numpy as np
 import random
-from proyect_ia_m.config import TAM_CUADRICULA
-from proyect_ia_m.modelos.terreno import TIPOS_TERRENO
+from config import TAM_CUADRICULA
+from modelos.terreno import TIPOS_TERRENO
 
 
 class MapaJuego:

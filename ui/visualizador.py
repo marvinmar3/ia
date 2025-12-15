@@ -1,11 +1,13 @@
 import pygame
-from proyect_ia_m.algoritmos.busquedas import Busquedas
-from proyect_ia_m.algoritmos.algoritmo_grafos import AlgoritmosGrafo
-from proyect_ia_m.algoritmos.generacion_mapas import GeneradorMapa
-from proyect_ia_m.modelos.terreno import TIPOS_TERRENO
-from proyect_ia_m.ui.boton import Boton
-from proyect_ia_m.ui.colores import COLORES
-from proyect_ia_m.config import *
+
+import config
+from algoritmos.busquedas import Busquedas
+from algoritmos.algoritmo_grafos import AlgoritmosGrafo
+from algoritmos.generacion_mapas import GeneradorMapa
+from modelos.terreno import TIPOS_TERRENO
+from ui.boton import Boton
+from ui.colores import COLORES
+from config import *
 
 
 class Visualizador:
@@ -52,8 +54,25 @@ class Visualizador:
         self.animando = False
         self.tipo_animacion = None
 
+        self.camino_agente = []
+        self.indice_agente = 0
+        self.animado_agente = False
+        self.frames_por_paso = 4 # velocidad (menor es mas rapido)
+        self.contador_frames =0
+
         # Botones
         self.botones = self._crear_botones()
+
+        #sprites
+        self.spriteTom = pygame.image.load("assets/sprite/standing/2.png").convert_alpha()
+        self.spriteTom = pygame.transform.scale(
+            self.spriteTom, (config.TAM_CELDA, config.TAM_CELDA)
+        )
+
+        self.spriteJerry= pygame.image.load("assets/sprite/jerry/3.png").convert_alpha()
+        self.spriteJerry=pygame.transform.scale(
+            self.spriteJerry, (config.TAM_CELDA, config.TAM_CELDA)
+        )
 
     def _crear_botones(self):
         """Crea los botones de control"""
@@ -124,6 +143,21 @@ class Visualizador:
         self.paso_animacion = 0
         self.animando = True
         self.tipo_animacion = algoritmo
+
+        #preparar la animacion del agente segun algoritmo
+        if algoritmo == 'aestrella':
+            self.camino_agente = self.ruta_aestrella
+        elif algoritmo == 'greedy':
+            self.camino_agente = self.ruta_greedy
+        elif algoritmo == 'bfs':
+            self.camino_agente = self.ruta_bfs
+        elif algoritmo == 'comparar':
+            self.camino_agente = self.ruta_aestrella #anima a* por defecto
+
+        self.indice_agente = 0
+        self.animado_agente=True
+        self.contador_frames=0
+
 
     def ejecutar_mst(self):
         """Ejecuta el algoritmo de Prim"""
@@ -275,16 +309,28 @@ class Visualizador:
     def dibujar_marcadores(self):
         """Dibuja los marcadores de inicio y objetivo"""
         if self.mapa.inicio:
-            x = self.mapa.inicio[1] * TAM_CELDA + TAM_CELDA // 2
+            if self.animado_agente and self.camino_agente:
+                fila, col = self.camino_agente[self.indice_agente]
+            else:
+                fila, col = self.mapa.inicio
+
+            x = col *TAM_CELDA
+            y= fila*TAM_CELDA
+            self.pantalla.blit(self.spriteTom, (x,y))
+            """x = self.mapa.inicio[1] * TAM_CELDA + TAM_CELDA // 2
             y = self.mapa.inicio[0] * TAM_CELDA + TAM_CELDA // 2
             pygame.draw.circle(self.pantalla, COLORES['INICIO'], (x, y), TAM_CELDA // 3)
-            pygame.draw.circle(self.pantalla, (0, 0, 0), (x, y), TAM_CELDA // 3, 2)
+            pygame.draw.circle(self.pantalla, (0, 0, 0), (x, y), TAM_CELDA // 3, 2)"""
 
         if self.mapa.meta:
-            x = self.mapa.meta[1] * TAM_CELDA + TAM_CELDA // 2
+            fila, col = self.mapa.meta
+            x = col * TAM_CELDA
+            y = fila * TAM_CELDA
+            self.pantalla.blit(self.spriteJerry, (x, y))
+            """x = self.mapa.meta[1] * TAM_CELDA + TAM_CELDA // 2
             y = self.mapa.meta[0] * TAM_CELDA + TAM_CELDA // 2
             pygame.draw.circle(self.pantalla, COLORES['META'], (x, y), TAM_CELDA // 3)
-            pygame.draw.circle(self.pantalla, (0, 0, 0), (x, y), TAM_CELDA // 3, 2)
+            pygame.draw.circle(self.pantalla, (0, 0, 0), (x, y), TAM_CELDA // 3, 2)"""
 
     def dibujar_panel_control(self):
         """Dibuja el panel de control lateral"""
@@ -386,7 +432,7 @@ class Visualizador:
                     # Verificar botones primero
                     boton_clickeado = False
                     for boton in self.botones:
-                        if boton.handle_event(evento):
+                        if boton.manejar_evento(evento):
                             boton_clickeado = True
                             break
 
@@ -396,7 +442,7 @@ class Visualizador:
 
                 # Manejar hover de botones
                 for boton in self.botones:
-                    boton.handle_event(evento)
+                    boton.manejar_evento(evento)
 
             # Actualizar animación
             if self.animando:
@@ -406,6 +452,17 @@ class Visualizador:
                                 len(self.visitados_bfs))
                 if self.paso_animacion >= max_pasos:
                     self.animando = False
+
+            #animacion de tom
+            if self.animado_agente and self.camino_agente:
+                self.contador_frames += 1
+                if self.contador_frames >= self.frames_por_paso:
+                    self.contador_frames = 0
+                    self.indice_agente += 1
+
+                    if self.indice_agente >= len(self.camino_agente):
+                        self.indice_agente = len(self.camino_agente) - 1
+                        self.animado_agente=False
 
             # Dibujar
             self.pantalla.fill((255, 255, 255))

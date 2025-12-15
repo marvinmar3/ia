@@ -1,6 +1,6 @@
 #clase para botones interactivos
 import pygame
-from proyect_ia_m.ui.colores import COLORES
+from ui.colores import COLORES
 
 class Boton:
 

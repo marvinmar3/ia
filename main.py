@@ -32,3 +32,6 @@ def main():
 
     # Iniciar el juego
     visualizador.run()
+
+if __name__=="__main__":
+    main()
