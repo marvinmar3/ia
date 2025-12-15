@@ -25,6 +25,15 @@ class AlgoritmosGrafo:
         aristas = []
         monticulo_aristas = []
 
+        if self.mapa.inicio and self.mapa.inicio in celdas_validas:
+            inicio = self.mapa.inicio
+        else:
+            inicio = random.choice(celdas_validas)
+
+            visitados = {inicio}
+            aristas = []
+            monticulo_aristas = []
+
         # Añadir aristas iniciales
         for vecino in self.mapa.obtener_vecinos(*inicio):
             costo = self.mapa.obtener_costo(*vecino)
@@ -49,6 +58,54 @@ class AlgoritmosGrafo:
 
         return aristas, costo_total
 
+    def prim_mst_conectado(self):
+        """
+        Prim MST que GARANTIZA conectar inicio y meta
+        Retorna: (aristas, costo_total, conectado)
+        """
+        if not self.mapa.inicio or not self.mapa.meta:
+            return self.prim_mst()
+
+        celdas_validas = [(i, j) for i in range(self.mapa.size)
+                          for j in range(self.mapa.size)
+                          if self.mapa.grid[i, j] != 'MONTAÑA']
+
+        if not celdas_validas:
+            return [], 0, False
+
+        inicio = self.mapa.inicio
+        visitados = {inicio}
+        aristas = []
+        monticulo_aristas = []
+
+        # Añadir aristas iniciales
+        for vecino in self.mapa.obtener_vecinos(*inicio):
+            costo = self.mapa.obtener_costo(*vecino)
+            heappush(monticulo_aristas, (costo, inicio, vecino))
+
+        costo_total = 0
+        meta_alcanzada = (inicio == self.mapa.meta)
+
+        while monticulo_aristas and len(visitados) < len(celdas_validas):
+            costo, del_nodo, al_nodo = heappop(monticulo_aristas)
+
+            if al_nodo in visitados:
+                continue
+
+            visitados.add(al_nodo)
+            aristas.append((del_nodo, al_nodo))
+            costo_total += costo
+
+            if al_nodo == self.mapa.meta:
+                meta_alcanzada = True
+
+            for vecino in self.mapa.obtener_vecinos(*al_nodo):
+                if vecino not in visitados:
+                    costo_vecino = self.mapa.obtener_costo(*vecino)
+                    heappush(monticulo_aristas, (costo_vecino, al_nodo, vecino))
+
+        return aristas, costo_total, meta_alcanzada
+
     def kruskal_mst(self):
         """Algoritmo de Kruskal para MST usando Union-Find"""
         celdas_validas = [(i, j) for i in range(self.mapa.size)
@@ -64,6 +121,14 @@ class AlgoritmosGrafo:
             for ni, nj in self.mapa.obtener_vecinos(i, j):
                 if (ni, nj) in celdas_validas:
                     costo = self.mapa.obtener_costo(ni, nj)
+
+                    prioridad_extra = 0
+                    if self.mapa.inicio and self.mapa.meta:
+                        if (i, j) == self.mapa.inicio or (ni, nj) == self.mapa.inicio:
+                            prioridad_extra = -0.1  # Slight boost
+                        if (i, j) == self.mapa.meta or (ni, nj) == self.mapa.meta:
+                            prioridad_extra = -0.1
+
                     # Evitar duplicados
                     if (i, j) < (ni, nj):
                         aristas.append((costo, (i, j), (ni, nj)))
@@ -98,6 +163,34 @@ class AlgoritmosGrafo:
                     break
 
         return aristas_mst, costo_total
+
+    def verificar_conectividad(self):
+        """
+        Verifica si inicio y meta están conectados en el grafo
+        Retorna True si hay un camino entre ellos
+        """
+        if not self.mapa.inicio or not self.mapa.meta:
+            return False
+
+        visitados = set()
+        pila = [self.mapa.inicio]
+
+        while pila:
+            actual = pila.pop()
+
+            if actual == self.mapa.meta:
+                return True
+
+            if actual in visitados:
+                continue
+
+            visitados.add(actual)
+
+            for vecino in self.mapa.obtener_vecinos(*actual):
+                if vecino not in visitados:
+                    pila.append(vecino)
+
+        return False
 
     def detectar_ciclos_dfs(self):
         """Detecta ciclos en el grafo usando DFS"""

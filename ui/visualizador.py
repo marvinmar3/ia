@@ -15,6 +15,7 @@ from config import *
 class Visualizador:
     def __init__(self, mapa_juego):
         pygame.init()
+        pygame.mixer.init() #para la musica
 
         self.mapa = mapa_juego
         self.pantalla = pygame.display.set_mode((VENTANA_ANCHO, VENTANA_ALTO))
@@ -35,6 +36,11 @@ class Visualizador:
         self.ruta_aestrella = []
         self.visitados_aestrella = []
         self.costo_aestrella = 0
+
+        #musica
+        self.musica_activa = True
+        self.volumen_musica= 0.3
+        self.cargar_musica()
 
         self.ruta_greedy = []
         self.visitados_greedy = []
@@ -77,39 +83,60 @@ class Visualizador:
             self.spriteJerry, (config.TAM_CELDA, config.TAM_CELDA)
         )
 
+        self.texturas_terreno = TIPOS_TERRENO.cargar_texturas(TAM_CELDA)
+
+    def cargar_musica(self):
+        try:
+            pygame.mixer.music.load("assets/music/background.mp3")
+            pygame.mixer.music.set_volume(self.volumen_musica)
+            pygame.mixer.music.play(-1) #-1 = loop infinito
+            print("Musica cargada con exito")
+        except pygame.error as e:
+            print(f"Error al cargar la musica: {e}")
+
+    def toggle_musica(self):
+        if self.musica_activa:
+            pygame.mixer.music.pause()
+            self.musica_activa= False
+        else:
+            pygame.mixer.music.unpause()
+            self.musica_activa=True
+
     def _crear_botones(self):
         """Crea los botones de control"""
         panel_x = TAM_CUADRICULA * TAM_CELDA + 10
         botones = []
 
         # ALGORITMOS DE BÚSQUEDA
+        """botones.append(Boton(panel_x, 550, 90, 25, " Música",
+                             self.toggle_musica))"""
 
-        botones.append(Boton(panel_x, 10, 135, 30, "🌳 Exterior",
+        botones.append(Boton(panel_x, 30, 135, 30, "Bosque",
                              lambda: self.cambiar_modo('EXTERIOR')))
-        botones.append(Boton(panel_x + 145, 10, 135, 30, "🏰 Interior",
+        botones.append(Boton(panel_x + 145, 30, 135, 30, "Laberinto",
                              lambda: self.cambiar_modo('INTERIOR')))
 
-        botones.append(Boton(panel_x, 50, 135, 35, "A*",
+        botones.append(Boton(panel_x, 70, 135, 35, "A*",
                              lambda: self.ejecutar_algoritmo('aestrella')))
-        botones.append(Boton(panel_x + 145, 50, 135, 35, "Greedy",
+        botones.append(Boton(panel_x + 145, 70, 135, 35, "Greedy",
                              lambda: self.ejecutar_algoritmo('greedy')))
-        botones.append(Boton(panel_x, 95, 280, 35, "Comparar A* vs Greedy",
+        botones.append(Boton(panel_x, 115, 280, 35, "Comparar A* vs Greedy",
                              lambda: self.ejecutar_algoritmo('comparar')))
 
         # ALGORITMOS DE GRAFOS
-        botones.append(Boton(panel_x, 150, 135, 35, "MST Prim",
+        botones.append(Boton(panel_x, 170, 135, 35, "MST Prim",
                              self.ejecutar_mst))
-        botones.append(Boton(panel_x + 145, 150, 135, 35, "MST Kruskal",
+        botones.append(Boton(panel_x + 145, 170, 135, 35, "MST Kruskal",
                              self.ejecutar_kruskal))
 
 
         # GENERACIÓN DE MAPASn(dinamicos)
         #cambian segun el modo
-        self.boton_generar_1 = Boton(panel_x, 205, 280, 35, "Perlin Noise",
+        self.boton_generar_1 = Boton(panel_x, 225, 280, 35, "Perlin Noise",
                                      self.generar_mapa_1)
-        self.boton_generar_2 = Boton(panel_x, 250, 280, 35, "Mapa Aleatorio",
+        self.boton_generar_2 = Boton(panel_x, 270, 280, 35, "Mapa Aleatorio",
                                      self.generar_mapa_2)
-        self.boton_generar_3 = Boton(panel_x, 295, 280, 35, "Extra",
+        self.boton_generar_3 = Boton(panel_x, 315, 280, 35, "Extra",
                                      self.generar_mapa_3)
 
         botones.append(self.boton_generar_1)
@@ -117,7 +144,7 @@ class Visualizador:
         botones.append(self.boton_generar_3)
 
         # UTILIDADES
-        botones.append(Boton(panel_x, 350, 280, 35, "Limpiar",
+        botones.append(Boton(panel_x, 360, 280, 35, "Limpiar",
                              self.limpiar_visualizacion))
         self._actualizar_textos_botones()
         return botones
@@ -359,9 +386,14 @@ class Visualizador:
                 x = j * TAM_CELDA
                 y = i * TAM_CELDA
                 terreno = self.mapa.grid[i, j]
-                color = TIPOS_TERRENO[terreno]['color']
+                #color = TIPOS_TERRENO[terreno]['color']
+                if self.texturas_terreno[terreno]:
+                    self.pantalla.blit(self.texturas_terreno[terreno], (x, y))
+                else:
+                    color= TIPOS_TERRENO.COLORES[terreno]
+                    pygame.draw.rect(self.pantalla, color, (x, y, TAM_CELDA, TAM_CELDA))
 
-                pygame.draw.rect(self.pantalla, color, (x, y, TAM_CELDA, TAM_CELDA))
+                #borde
                 pygame.draw.rect(self.pantalla, COLORES['GRID'],
                                  (x, y, TAM_CELDA, TAM_CELDA), 1)
 

@@ -64,7 +64,7 @@ class MapaJuego:
         """Obtiene el coste de movimiento de una celda"""
         if not (0 <= x < self.size and 0 <= y < self.size):
             return float('inf')
-        return TIPOS_TERRENO[self.grid[x, y]]['costo']
+        return TIPOS_TERRENO.INFO[self.grid[x, y]]['costo']
 
     def obtener_vecinos(self, x, y):
         """Obtiene vecinos válidos (4 direcciones)"""
