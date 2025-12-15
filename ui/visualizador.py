@@ -4,6 +4,8 @@ import config
 from algoritmos.busquedas import Busquedas
 from algoritmos.algoritmo_grafos import AlgoritmosGrafo
 from algoritmos.generacion_mapas import GeneradorMapa
+from algoritmos.generacion_laberinto import GeneradorLaberinto
+from algoritmos.generacion_dungeon import GeneradorDungeon
 from modelos.terreno import TIPOS_TERRENO
 from ui.boton import Boton
 from ui.colores import COLORES
@@ -16,17 +18,18 @@ class Visualizador:
 
         self.mapa = mapa_juego
         self.pantalla = pygame.display.set_mode((VENTANA_ANCHO, VENTANA_ALTO))
-        pygame.display.set_caption("El Rescate del Explorador Perdido")
+        pygame.display.set_caption("Atrapando a Jerry 🐁")
         self.reloj = pygame.time.Clock()
         self.fuente = pygame.font.Font(None, 24)
         self.fuente_pequena = pygame.font.Font(None, 18)
 
+        #modo de juego
+        self.modo_juego = 'EXTERIOR' #EXTERIOR O INTERIOR
+
         # Estado del juego
         self.modo = 'establecer_inicio'  # 'establecer_inicio', 'establecer_meta', 'listo'
-        self.alg_en_ejecucion = False
         self.mostrar_ruta = None  # 'aestrella', 'greedy', 'bfs', 'comparar', None
         self.mostrar_mst = False
-        self.mostrar_ciclos = False
 
         # Resultados de algoritmos
         self.ruta_aestrella = []
@@ -80,36 +83,156 @@ class Visualizador:
         botones = []
 
         # ALGORITMOS DE BÚSQUEDA
+
+        botones.append(Boton(panel_x, 10, 135, 30, "🌳 Exterior",
+                             lambda: self.cambiar_modo('EXTERIOR')))
+        botones.append(Boton(panel_x + 145, 10, 135, 30, "🏰 Interior",
+                             lambda: self.cambiar_modo('INTERIOR')))
+
         botones.append(Boton(panel_x, 50, 135, 35, "A*",
                              lambda: self.ejecutar_algoritmo('aestrella')))
         botones.append(Boton(panel_x + 145, 50, 135, 35, "Greedy",
                              lambda: self.ejecutar_algoritmo('greedy')))
-        botones.append(Boton(panel_x, 95, 135, 35, "BFS",
-                             lambda: self.ejecutar_algoritmo('bfs')))
-        botones.append(Boton(panel_x + 145, 95, 135, 35, "Comparar",
+        botones.append(Boton(panel_x, 95, 280, 35, "Comparar A* vs Greedy",
                              lambda: self.ejecutar_algoritmo('comparar')))
 
         # ALGORITMOS DE GRAFOS
-        botones.append(Boton(panel_x, 145, 135, 35, "MST Prim",
+        botones.append(Boton(panel_x, 150, 135, 35, "MST Prim",
                              self.ejecutar_mst))
-        botones.append(Boton(panel_x + 145, 145, 135, 35, "MST Kruskal",
+        botones.append(Boton(panel_x + 145, 150, 135, 35, "MST Kruskal",
                              self.ejecutar_kruskal))
-        botones.append(Boton(panel_x, 190, 280, 35, "Detectar Ciclos",
-                             self.ejecutar_deteccion_ciclos))
 
-        # GENERACIÓN DE MAPAS
-        botones.append(Boton(panel_x, 240, 280, 35, "Mapa: Perlin Noise",
-                             self.generar_perlin))
-        botones.append(Boton(panel_x, 285, 280, 35, "Mapa: Autómatas Celulares",
-                             self.generar_cellular))
+
+        # GENERACIÓN DE MAPASn(dinamicos)
+        #cambian segun el modo
+        self.boton_generar_1 = Boton(panel_x, 205, 280, 35, "Perlin Noise",
+                                     self.generar_mapa_1)
+        self.boton_generar_2 = Boton(panel_x, 250, 280, 35, "Mapa Aleatorio",
+                                     self.generar_mapa_2)
+        self.boton_generar_3 = Boton(panel_x, 295, 280, 35, "Extra",
+                                     self.generar_mapa_3)
+
+        botones.append(self.boton_generar_1)
+        botones.append(self.boton_generar_2)
+        botones.append(self.boton_generar_3)
 
         # UTILIDADES
-        botones.append(Boton(panel_x, 340, 280, 35, "Limpiar",
+        botones.append(Boton(panel_x, 350, 280, 35, "Limpiar",
                              self.limpiar_visualizacion))
-        botones.append(Boton(panel_x, 385, 280, 35, "Mapa Aleatorio",
-                             self.resetear_mapa))
-
+        self._actualizar_textos_botones()
         return botones
+
+    def _actualizar_textos_botones(self):
+        """Actualiza los textos de los botones según el modo"""
+        if self.modo_juego == 'EXTERIOR':
+            self.boton_generar_1.texto = " Perlin Noise"
+            self.boton_generar_2.texto = " Mapa Aleatorio"
+            self.boton_generar_3.texto = " Más Agua"
+        else:  # INTERIOR
+            self.boton_generar_1.texto = " Laberinto (Prim)"
+            self.boton_generar_2.texto = " Laberinto (Kruskal)"
+            self.boton_generar_3.texto = " Dungeon (Salas)"
+
+    def cambiar_modo(self, nuevo_modo):
+        """Cambia entre modo EXTERIOR e INTERIOR"""
+        if self.modo_juego == nuevo_modo:
+            return
+
+        self.modo_juego = nuevo_modo
+        self._actualizar_textos_botones()
+
+        # Generar mapa apropiado
+        if nuevo_modo == 'EXTERIOR':
+            self.resetear_mapa()
+        else:
+            self.generar_mapa_1()  # Laberinto por defecto
+
+        print(f"🔄 Modo cambiado a: {nuevo_modo}")
+
+    def generar_mapa_1(self):
+        """Genera mapa según el modo actual (Botón 1)"""
+        if self.modo_juego == 'EXTERIOR':
+            # Perlin Noise
+            generador = GeneradorMapa(self.mapa.size)
+            nuevo_mapa = generador.generar_con_perlin_noise()
+            self.mapa.cargar_mapa_generado(nuevo_mapa)
+            print("🎨 Mapa Perlin Noise generado")
+        else:
+            # Laberinto con Prim
+            generador = GeneradorLaberinto(self.mapa.size)
+            nuevo_mapa = generador.generar_laberinto_prim()
+            self.mapa.cargar_mapa_generado(nuevo_mapa)
+            print("🏗️ Laberinto (Prim) generado")
+
+        self.limpiar_visualizacion()
+        self.modo = 'establecer_inicio'
+
+    def generar_mapa_2(self):
+        """Genera mapa según el modo actual (Botón 2)"""
+        if self.modo_juego == 'EXTERIOR':
+            # Mapa aleatorio normal
+            self.mapa.__init__(self.mapa.size)
+            print("🎲 Mapa aleatorio generado")
+        else:
+            # Laberinto con Kruskal
+            generador = GeneradorLaberinto(self.mapa.size)
+            nuevo_mapa = generador.generar_laberinto_kruskal()
+            self.mapa.cargar_mapa_generado(nuevo_mapa)
+            print("🔀 Laberinto (Kruskal) generado")
+
+        self.limpiar_visualizacion()
+        self.modo = 'establecer_inicio'
+
+    def generar_mapa_3(self):
+        """Genera mapa según el modo actual (Botón 3)"""
+        if self.modo_juego == 'EXTERIOR':
+            # Mapa con más agua
+            import numpy as np
+            import random
+            grid = np.full((self.mapa.size, self.mapa.size), 'LLANURA', dtype=object)
+
+            # Más ríos y lagos
+            for _ in range(8):
+                x = random.randint(0, self.mapa.size - 1)
+                y = random.randint(0, self.mapa.size - 1)
+                direccion = random.choice([(0, 1), (1, 0), (1, 1)])
+                for _ in range(random.randint(10, 20)):
+                    if 0 <= x < self.mapa.size and 0 <= y < self.mapa.size:
+                        grid[x, y] = 'AGUA'
+                        # Ensanchar río
+                        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                            nx, ny = x + dx, y + dy
+                            if 0 <= nx < self.mapa.size and 0 <= ny < self.mapa.size:
+                                if random.random() > 0.5:
+                                    grid[nx, ny] = 'AGUA'
+                    x += direccion[0]
+                    y += direccion[1]
+
+            # Agregar obstáculos
+            for _ in range(15):
+                x, y = random.randint(0, self.mapa.size - 1), random.randint(0, self.mapa.size - 1)
+                if grid[x, y] != 'AGUA':
+                    grid[x, y] = random.choice(['BOSQUE', 'PANTANO', 'MONTAÑA'])
+
+            self.mapa.cargar_mapa_generado(grid)
+            print("🌊 Mapa con más agua generado")
+        else:
+            # Dungeon con salas
+            generador = GeneradorDungeon(self.mapa.size)
+            nuevo_mapa = generador.generar_dungeon(num_salas=10)
+            self.mapa.cargar_mapa_generado(nuevo_mapa)
+            print("🏛️ Dungeon generado")
+
+        self.limpiar_visualizacion()
+        self.modo = 'establecer_inicio'
+
+    def resetear_mapa(self):
+        """Genera un nuevo mapa según el modo"""
+        if self.modo_juego == 'EXTERIOR':
+            self.mapa.__init__(self.mapa.size)
+        else:
+            self.generar_mapa_1()
+
 
     def ejecutar_algoritmo(self, algoritmo):
         """Ejecuta el algoritmo de búsqueda seleccionado"""
@@ -163,27 +286,39 @@ class Visualizador:
         """Ejecuta el algoritmo de Prim"""
         algoritmo_grafo = AlgoritmosGrafo(self.mapa)
         self.aristas_mst, self.costo_mst = algoritmo_grafo.prim_mst()
-        self.mostrar_mst = not self.mostrar_mst
+        self.tipo_mst = "Prim"
+        self.mostrar_mst = True
+        self.aristas_kruskal = [] #limpiar kruskal
+        print(f"MST Prim ejecutado: {len(self.aristas_mst)} aristas, consto {self.costo_mst}")
 
     def ejecutar_kruskal(self):
         """Ejecuta el algoritmo de Kruskal"""
         algoritmo_grafo = AlgoritmosGrafo(self.mapa)
         self.aristas_kruskal, self.costo_kruskal = algoritmo_grafo.kruskal_mst()
+        self.tipo_mst = "Kruskal"
         self.mostrar_mst = True
+        self.aristas_mst = [] #limpiar prim
+        print(f"MST Kruskal ejecutado: {len(self.aristas_kruskal)} aristas, consto {self.costo_kruskal}")
 
     def ejecutar_deteccion_ciclos(self):
         """Ejecuta la detección de ciclos"""
         algoritmo_grafo = AlgoritmosGrafo(self.mapa)
         self.ciclos = algoritmo_grafo.detectar_ciclos_dfs()
-        self.mostrar_ciclos = not self.mostrar_ciclos
+        self.mostrar_ciclos = True
+        print(f"Ciclos detectados: {len(self.ciclos)}")
+        if self.ciclos:
+            print(f"    Mostrando primeros 5 ciclos de {len(self.ciclos)}")
 
     def generar_perlin(self):
         """Genera mapa con Perlin Noise (terreno realista)"""
+        print("Generando mapa con perlin noise...")
         generador = GeneradorMapa(self.mapa.size)
         nuevo_mapa = generador.generar_con_perlin_noise()
         self.mapa.cargar_mapa_generado(nuevo_mapa)
         self.limpiar_visualizacion()
         self.modo = 'establecer_inicio'
+        print("Mapa generado con éxito!")
+
 
     def generar_cellular(self):
         """Genera mapa con Autómatas Celulares (cuevas)"""
@@ -192,6 +327,8 @@ class Visualizador:
         self.mapa.cargar_mapa_generado(nuevo_mapa)
         self.limpiar_visualizacion()
         self.modo = 'establecer_inicio'
+        print("Mapa generado con éxito!")
+
 
     def resetear_mapa(self):
         """Genera un nuevo mapa aleatorio"""
@@ -392,11 +529,6 @@ class Visualizador:
             self.pantalla.blit(self.fuente_pequena.render(texto_mst, True, COLORES['TEXTO']),
                                (panel_x + 10, y_offset))
 
-        if self.mostrar_ciclos:
-            y_offset += 30
-            texto_ciclos = f"Ciclos: {len(self.ciclos)}"
-            self.pantalla.blit(self.fuente_pequena.render(texto_ciclos, True, COLORES['TEXTO']),
-                               (panel_x + 10, y_offset))
 
         #botones
         for boton in self.botones:
@@ -471,7 +603,6 @@ class Visualizador:
             if self.animando or self.mostrar_ruta:
                 self.dibujar_visitados()
 
-            self.dibujar_ciclos()
             self.dibujar_mst()
             self.dibujar_caminos()
             self.dibujar_marcadores()
