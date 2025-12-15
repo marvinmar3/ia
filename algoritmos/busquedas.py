@@ -21,8 +21,8 @@ class Busquedas:
     def a_estrella(self, inicio, meta):
         """Algoritmo A* - devuelve camino, nodos visitados y frontera"""
         self.visitados = set()
-        self.frontera = []
-        self.vino_de = {}
+        self.frontera = [] #cola de prioridad
+        self.vino_de = {} #reconstruir el camino
         self.costo_hasta_ahora = {}
 
         heappush(self.frontera, (0, inicio))
@@ -40,12 +40,15 @@ class Busquedas:
 
             self.visitados.add(actual)
             orden_visitados.append(actual)
-            estados_frontera.append([nodo for _, nodo in self.frontera])
+            estados_frontera.append([nodo for _, nodo in self.frontera]) #para animacion
 
             if actual == meta:
                 break
 
             for siguiente_nodo in self.mapa.obtener_vecinos(*actual):
+                if siguiente_nodo in self.visitados:
+                    continue
+
                 nuevo_costo = self.costo_hasta_ahora[actual] + self.mapa.obtener_costo(*siguiente_nodo)
 
                 if siguiente_nodo not in self.costo_hasta_ahora or nuevo_costo < self.costo_hasta_ahora[siguiente_nodo]:
@@ -57,6 +60,7 @@ class Busquedas:
         camino = self._reconstruir_camino(inicio, meta)
         costo_total = self.costo_hasta_ahora.get(meta, float('inf'))
 
+        print(f"A* exploró {len(orden_visitados)} nodos")
         return camino, orden_visitados, estados_frontera, costo_total
 
     def greedy(self, inicio, meta):
@@ -74,6 +78,7 @@ class Busquedas:
         while self.frontera:
             _, actual = heappop(self.frontera)
 
+            #verificar si ya esta visitado
             if actual in self.visitados:
                 continue
 
@@ -99,10 +104,11 @@ class Busquedas:
             for i in range(len(camino) - 1):
                 costo_total += self.mapa.obtener_costo(*camino[i + 1])
 
+        print(f"Greedy: exploró {len(orden_visitados)} nodos")
         return camino, orden_visitados, estados_frontera, costo_total
 
-    def bfs(self, inicio, meta):
-        """Búsqueda en Amplitud (BFS)"""
+    """def bfs(self, inicio, meta):
+        #Búsqueda en Amplitud (BFS)
         self.visitados = set()
         self.frontera = deque([inicio])
         self.vino_de = {inicio: None}
@@ -136,7 +142,7 @@ class Busquedas:
             for i in range(len(camino) - 1):
                 costo_total += self.mapa.obtener_costo(*camino[i + 1])
 
-        return camino, orden_visitados, estados_frontera, costo_total
+        return camino, orden_visitados, estados_frontera, costo_total"""
 
     def _reconstruir_camino(self, inicio, meta):
         """Reconstruye el camino desde la meta hasta el inicio"""

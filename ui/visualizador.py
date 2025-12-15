@@ -327,30 +327,12 @@ class Visualizador:
         self.aristas_mst = [] #limpiar prim
         print(f"MST Kruskal ejecutado: {len(self.aristas_kruskal)} aristas, consto {self.costo_kruskal}")
 
-    def ejecutar_deteccion_ciclos(self):
-        """Ejecuta la detección de ciclos"""
-        algoritmo_grafo = AlgoritmosGrafo(self.mapa)
-        self.ciclos = algoritmo_grafo.detectar_ciclos_dfs()
-        self.mostrar_ciclos = True
-        print(f"Ciclos detectados: {len(self.ciclos)}")
-        if self.ciclos:
-            print(f"    Mostrando primeros 5 ciclos de {len(self.ciclos)}")
 
     def generar_perlin(self):
         """Genera mapa con Perlin Noise (terreno realista)"""
         print("Generando mapa con perlin noise...")
         generador = GeneradorMapa(self.mapa.size)
         nuevo_mapa = generador.generar_con_perlin_noise()
-        self.mapa.cargar_mapa_generado(nuevo_mapa)
-        self.limpiar_visualizacion()
-        self.modo = 'establecer_inicio'
-        print("Mapa generado con éxito!")
-
-
-    def generar_cellular(self):
-        """Genera mapa con Autómatas Celulares (cuevas)"""
-        generador = GeneradorMapa(self.mapa.size)
-        nuevo_mapa = generador.generar_con_automatas_celulares()
         self.mapa.cargar_mapa_generado(nuevo_mapa)
         self.limpiar_visualizacion()
         self.modo = 'establecer_inicio'
@@ -415,16 +397,16 @@ class Visualizador:
                 x, y = nodo[1] * TAM_CELDA, nodo[0] * TAM_CELDA
                 surf = pygame.Surface((TAM_CELDA, TAM_CELDA))
                 surf.set_alpha(100)
-                surf.fill((255, 200, 100))  # Naranja claro
+                surf.fill((255, 140, 0))  # Naranja
                 self.pantalla.blit(surf, (x, y))
 
-        if self.mostrar_ruta == 'bfs':
+        """if self.mostrar_ruta == 'bfs':
             for nodo in self.visitados_bfs[:paso_actual]:
                 x, y = nodo[1] * TAM_CELDA, nodo[0] * TAM_CELDA
                 surf = pygame.Surface((TAM_CELDA, TAM_CELDA))
                 surf.set_alpha(100)
                 surf.fill((200, 150, 230))  # Morado claro
-                self.pantalla.blit(surf, (x, y))
+                self.pantalla.blit(surf, (x, y))"""
 
     def dibujar_caminos(self):
         """Dibuja los caminos encontrados"""

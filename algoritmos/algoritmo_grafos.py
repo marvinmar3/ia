@@ -32,7 +32,7 @@ class AlgoritmosGrafo:
 
             visitados = {inicio}
             aristas = []
-            monticulo_aristas = []
+            monticulo_aristas = [] #cola de prioridad
 
         # Añadir aristas iniciales
         for vecino in self.mapa.obtener_vecinos(*inicio):
@@ -51,6 +51,7 @@ class AlgoritmosGrafo:
             aristas.append((del_nodo, al_nodo))
             costo_total += costo
 
+            #obtenemos los vecinos del nodo recien agregado
             for vecino in self.mapa.obtener_vecinos(*al_nodo):
                 if vecino not in visitados:
                     costo_vecino = self.mapa.obtener_costo(*vecino)
@@ -122,7 +123,6 @@ class AlgoritmosGrafo:
                 if (ni, nj) in celdas_validas:
                     costo = self.mapa.obtener_costo(ni, nj)
 
-                    prioridad_extra = 0
                     if self.mapa.inicio and self.mapa.meta:
                         if (i, j) == self.mapa.inicio or (ni, nj) == self.mapa.inicio:
                             prioridad_extra = -0.1  # Slight boost
