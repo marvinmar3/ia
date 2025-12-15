@@ -10,6 +10,7 @@ from modelos.terreno import TIPOS_TERRENO
 from ui.boton import Boton
 from ui.colores import COLORES
 from config import *
+from algoritmos.prm import PRM
 
 
 class Visualizador:
@@ -57,6 +58,12 @@ class Visualizador:
         self.costo_kruskal = 0
 
         self.ciclos = []
+
+        self.prm = None
+        self.waypoints_prm = []
+        self.ruta_prm = []
+        self.costo_prm = 0
+        self.mostrar_prm = False
 
         # Animación
         self.paso_animacion = 0
@@ -122,21 +129,23 @@ class Visualizador:
                              lambda: self.ejecutar_algoritmo('greedy')))
         botones.append(Boton(panel_x, 115, 280, 35, "Comparar A* vs Greedy",
                              lambda: self.ejecutar_algoritmo('comparar')))
+        botones.append(Boton(panel_x, 160, 280, 35, "🗺️ PRM (Roadmap)",
+                             self.ejecutar_prm))
 
         # ALGORITMOS DE GRAFOS
-        botones.append(Boton(panel_x, 170, 135, 35, "MST Prim",
+        botones.append(Boton(panel_x, 215, 135, 35, "MST Prim",
                              self.ejecutar_mst))
-        botones.append(Boton(panel_x + 145, 170, 135, 35, "MST Kruskal",
+        botones.append(Boton(panel_x + 145, 215, 135, 35, "MST Kruskal",
                              self.ejecutar_kruskal))
 
 
         # GENERACIÓN DE MAPASn(dinamicos)
         #cambian segun el modo
-        self.boton_generar_1 = Boton(panel_x, 225, 280, 35, "Perlin Noise",
+        self.boton_generar_1 = Boton(panel_x, 270, 280, 35, "Perlin Noise",
                                      self.generar_mapa_1)
-        self.boton_generar_2 = Boton(panel_x, 270, 280, 35, "Mapa Aleatorio",
+        self.boton_generar_2 = Boton(panel_x, 315, 280, 35, "Mapa Aleatorio",
                                      self.generar_mapa_2)
-        self.boton_generar_3 = Boton(panel_x, 315, 280, 35, "Extra",
+        self.boton_generar_3 = Boton(panel_x, 360, 280, 35, "Extra",
                                      self.generar_mapa_3)
 
         botones.append(self.boton_generar_1)
@@ -144,7 +153,7 @@ class Visualizador:
         botones.append(self.boton_generar_3)
 
         # UTILIDADES
-        botones.append(Boton(panel_x, 360, 280, 35, "Limpiar",
+        botones.append(Boton(panel_x, 405, 280, 35, "Limpiar",
                              self.limpiar_visualizacion))
         self._actualizar_textos_botones()
         return botones
@@ -327,6 +336,28 @@ class Visualizador:
         self.aristas_mst = [] #limpiar prim
         print(f"MST Kruskal ejecutado: {len(self.aristas_kruskal)} aristas, consto {self.costo_kruskal}")
 
+    def ejecutar_prm(self):
+        """Ejecuta PRM - Probabilistic Road Maps"""
+        if self.mapa.inicio is None or self.mapa.meta is None:
+            print("⚠️ Primero establece inicio y meta")
+            return
+
+        print("\n🗺️ === EJECUTANDO PRM ===")
+
+        # Crear instancia de PRM
+        self.prm = PRM(self.mapa, num_samples=150, radio_conexion=8)
+
+        # PASO 1: Generar roadmap
+        self.waypoints_prm, _ = self.prm.generar_roadmap()
+
+        # PASO 2: Encontrar camino
+        self.ruta_prm, _, _, self.costo_prm = self.prm.encontrar_camino(
+            self.mapa.inicio,
+            self.mapa.meta
+        )
+
+        self.mostrar_prm = True
+        print(f"✅ PRM completado\n")
 
     def generar_perlin(self):
         """Genera mapa con Perlin Noise (terreno realista)"""
@@ -360,6 +391,10 @@ class Visualizador:
         self.mostrar_mst = False
         self.mostrar_ciclos = False
         self.animando = False
+        self.waypoints_prm = []
+        self.ruta_prm = []
+        self.mostrar_prm = False
+        self.prm = None
 
     def dibujar_grid(self):
         """Dibuja el mapa con todos los terrenos"""
@@ -381,11 +416,20 @@ class Visualizador:
 
     def dibujar_visitados(self):
         """Dibuja las celdas visitadas durante la búsqueda"""
-        max_pasos = max(len(self.visitados_aestrella), len(self.visitados_greedy), len(self.visitados_bfs))
-        paso_actual = min(self.paso_animacion, max_pasos)
+        # Calcular max_pasos solo con listas que tengan datos
+        listas_visitados = [self.visitados_aestrella, self.visitados_greedy, self.visitados_bfs]
+        listas_con_datos = [len(v) for v in listas_visitados if v]
+        max_pasos = max(listas_con_datos) if listas_con_datos else 0
+
+        # Si está animando, mostrar progresivamente; si no, mostrar todos
+        if self.animando:
+            paso_actual = min(self.paso_animacion, max_pasos)
+        else:
+            paso_actual = max_pasos  # Mostrar todos cuando termina la animación
 
         if self.mostrar_ruta in ['aestrella', 'comparar']:
-            for nodo in self.visitados_aestrella[:paso_actual]:
+            nodos_mostrar = self.visitados_aestrella[:paso_actual] if self.animando else self.visitados_aestrella
+            for nodo in nodos_mostrar:
                 x, y = nodo[1] * TAM_CELDA, nodo[0] * TAM_CELDA
                 surf = pygame.Surface((TAM_CELDA, TAM_CELDA))
                 surf.set_alpha(100)
@@ -393,7 +437,8 @@ class Visualizador:
                 self.pantalla.blit(surf, (x, y))
 
         if self.mostrar_ruta in ['greedy', 'comparar']:
-            for nodo in self.visitados_greedy[:paso_actual]:
+            nodos_mostrar = self.visitados_greedy[:paso_actual] if self.animando else self.visitados_greedy
+            for nodo in nodos_mostrar:
                 x, y = nodo[1] * TAM_CELDA, nodo[0] * TAM_CELDA
                 surf = pygame.Surface((TAM_CELDA, TAM_CELDA))
                 surf.set_alpha(100)
@@ -445,6 +490,50 @@ class Visualizador:
                 fin = (al_nodo[1] * TAM_CELDA + TAM_CELDA // 2,
                        al_nodo[0] * TAM_CELDA + TAM_CELDA // 2)
                 pygame.draw.line(self.pantalla, COLORES['MST'], inicio, fin, 2)
+
+    def dibujar_prm(self):
+        """Dibuja el roadmap de PRM y el camino encontrado"""
+        if not self.mostrar_prm:
+            return
+
+        # PASO 1: Dibujar waypoints (puntos aleatorios)
+        for waypoint in self.waypoints_prm:
+            x = waypoint[1] * TAM_CELDA + TAM_CELDA // 2
+            y = waypoint[0] * TAM_CELDA + TAM_CELDA // 2
+            # Punto pequeño azul
+            pygame.draw.circle(self.pantalla, (100, 100, 255), (x, y), 3)
+
+        # PASO 2: Dibujar conexiones del roadmap (líneas grises)
+        if self.prm and self.prm.conexiones:
+            ya_dibujadas = set()
+            for punto, vecinos in self.prm.conexiones.items():
+                for vecino in vecinos:
+                    # Evitar dibujar la misma línea dos veces
+                    arista = tuple(sorted([punto, vecino]))
+                    if arista in ya_dibujadas:
+                        continue
+                    ya_dibujadas.add(arista)
+
+                    x1 = punto[1] * TAM_CELDA + TAM_CELDA // 2
+                    y1 = punto[0] * TAM_CELDA + TAM_CELDA // 2
+                    x2 = vecino[1] * TAM_CELDA + TAM_CELDA // 2
+                    y2 = vecino[0] * TAM_CELDA + TAM_CELDA // 2
+
+                    # Línea gris suave
+                    pygame.draw.line(self.pantalla, (200, 200, 200),
+                                     (x1, y1), (x2, y2), 1)
+
+        # PASO 3: Dibujar camino encontrado (línea verde gruesa)
+        if self.ruta_prm:
+            for i in range(len(self.ruta_prm) - 1):
+                x1 = self.ruta_prm[i][1] * TAM_CELDA + TAM_CELDA // 2
+                y1 = self.ruta_prm[i][0] * TAM_CELDA + TAM_CELDA // 2
+                x2 = self.ruta_prm[i + 1][1] * TAM_CELDA + TAM_CELDA // 2
+                y2 = self.ruta_prm[i + 1][0] * TAM_CELDA + TAM_CELDA // 2
+
+                # Línea verde gruesa para el camino
+                pygame.draw.line(self.pantalla, (0, 255, 100),
+                                 (x1, y1), (x2, y2), 4)
 
     def dibujar_ciclos(self):
         """Dibuja las regiones con ciclos detectados"""
@@ -543,6 +632,15 @@ class Visualizador:
             self.pantalla.blit(self.fuente_pequena.render(texto_mst, True, COLORES['TEXTO']),
                                (panel_x + 10, y_offset))
 
+        if self.mostrar_prm and self.ruta_prm:
+            y_offset += 50
+            texto_prm = f"PRM - Coste: {self.costo_prm:.0f}"
+            texto_waypoints = f"Waypoints: {len(self.waypoints_prm)}"
+            self.pantalla.blit(self.fuente_pequena.render(texto_prm, True, COLORES['TEXTO']),
+                               (panel_x + 10, y_offset))
+            self.pantalla.blit(self.fuente_pequena.render(texto_waypoints, True, COLORES['TEXTO']),
+                               (panel_x + 10, y_offset + 20))
+
 
         #botones
         for boton in self.botones:
@@ -618,6 +716,7 @@ class Visualizador:
                 self.dibujar_visitados()
 
             self.dibujar_mst()
+            self.dibujar_prm()
             self.dibujar_caminos()
             self.dibujar_marcadores()
             self.dibujar_panel_control()
