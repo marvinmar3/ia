@@ -138,7 +138,6 @@ class Visualizador:
         botones.append(Boton(panel_x + 145, 215, 135, 35, "MST Kruskal",
                              self.ejecutar_kruskal))
 
-
         # GENERACIÓN DE MAPASn(dinamicos)
         #cambian segun el modo
         self.boton_generar_1 = Boton(panel_x, 270, 280, 35, "Perlin Noise",
